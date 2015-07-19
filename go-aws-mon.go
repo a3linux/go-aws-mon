@@ -1,21 +1,20 @@
 package main
 
 import (
-	"strings"
-    "encoding/json"
-    "flag"
-    "fmt"
-    "log"
-    "net/http"
-	"io/ioutil"
-    "github.com/aws/aws-sdk-go/aws"
-    "github.com/aws/aws-sdk-go/aws/awserr"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/awsutil"
-    "github.com/aws/aws-sdk-go/service/cloudwatch"
-       )
+	"github.com/aws/aws-sdk-go/service/cloudwatch"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"strings"
+)
 
 func main() {
-
 	isMemUtil := flag.Bool("mem-util", true, "Memory Utilization(percent)")
 	isMemUsed := flag.Bool("mem-used", false, "Memory Used(bytes)")
 	isMemAvail := flag.Bool("mem-avail", false, "Memory Available(bytes)")
@@ -26,31 +25,18 @@ func main() {
 	isDiskSpaceAvail := flag.Bool("disk-space-avail", false, "Disk Space Available(bytes)")
 	isDiskInodeUtil := flag.Bool("disk-inode-util", false, "Disk Inode Utilization(percent)")
 
-    ns := flag.String("namespace", "Linux/System", "CloudWatch metric namespace (required)(It is always EC2)")
+	ns := flag.String("namespace", "Linux/System", "CloudWatch metric namespace (required)(It is always EC2)")
 	diskPaths := flag.String("disk-path", "/", "Disk Path")
 
-    flag.Parse()
+	flag.Parse()
 
-	paths := strings.Split(*diskPaths, ",")
-
-	for k, val := range paths {
-		fmt.Println(k)
-		fmt.Println(val)
-		fmt.Println(*isDiskSpaceAvail, *isDiskSpaceUsed, *isDiskSpaceUtil, *isDiskInodeUtil)
-		diskspaceUtil, diskspaceUsed, diskspaceAvail, err := DiskSpace(val)
-		if err != nil {
-			log.Fatal("Can't get DiskSpace %s", err)
-		}
-		fmt.Println(diskspaceUtil, diskspaceAvail, diskspaceUsed)
-	}
-
-    memUtil, memUsed, memAvail, swapUtil, swapUsed, err := memoryUsage()
+	memUtil, memUsed, memAvail, swapUtil, swapUsed, err := memoryUsage()
 
 	if *isMemUtil {
 		err = putMetric("MemoryUtilization", "Percent", memUtil, *ns)
 		if err != nil {
-    	    log.Fatal("Can't put memory usage metric: ", err)
-    	}
+			log.Fatal("Can't put memory usage metric: ", err)
+		}
 	}
 
 	if *isMemUsed {
@@ -78,9 +64,31 @@ func main() {
 		}
 	}
 
+	paths := strings.Split(*diskPaths, ",")
+
+	for _, val := range paths {
+		diskspaceUtil, diskspaceUsed, diskspaceAvail, diskinodesUtil, err := DiskSpace(val)
+		if err != nil {
+			log.Fatal("Can't get DiskSpace %s", err)
+		}
+		if *isDiskSpaceUtil {
+			err = putMetric("DiskUtilization", "Percent", diskspaceUtil, *ns)
+		}
+	}
 }
 
-func putMetric(name, unit string, value float64, namespace string) error {
+func addMetric(name, unit string, value float64, dimensions []*cloudwatch.Dimension, metricData []*cloudwatch.MetricDatum) error {
+	_metric := cloudwatch.MetricDatum{
+		MetricName: aws.String(name),
+		Unit:       aws.String(unit),
+		Value:      aws.Double(value),
+		Dimensions: dimensions,
+	}
+	metricData = append(metricData, &_metric)
+	return nil
+}
+
+func putMetric(name, unit string, value float64, dimensions []cloudwatch.Dimension, namespace string) error {
 
 	region, instanceId, err := getMetadata()
 	if err != nil {
@@ -97,7 +105,7 @@ func putMetric(name, unit string, value float64, namespace string) error {
 				Value:      aws.Double(value),
 				Dimensions: []*cloudwatch.Dimension{
 					{
-						Name: aws.String("InstanceId"),
+						Name:  aws.String("InstanceId"),
 						Value: aws.String(instanceId),
 					},
 				},
@@ -118,6 +126,10 @@ func putMetric(name, unit string, value float64, namespace string) error {
 	return nil
 }
 
+/*
+  Metadata struct:
+
+*/
 func getMetadata() (region string, instanceId string, err error) {
 	resp, err := http.Get("http://169.254.169.254/latest/dynamic/instance-identity/document")
 	if err != nil {
@@ -133,5 +145,5 @@ func getMetadata() (region string, instanceId string, err error) {
 	var data map[string]string
 	json.Unmarshal(body, &data)
 
-	return data["region"], data["instanceId"], err
+	return data, err
 }
