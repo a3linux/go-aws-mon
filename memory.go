@@ -14,5 +14,5 @@ func memoryUsage() (memUtil, memUsed, memAvail, swapUtil, swapUsed float64, err 
 	_swapUtil := float64(meminfo.Swap())
 	_swapUsed := float64((*meminfo)["SwapCached"])
 
-	return _memUtil, _memUsed, _memAvail, _swapUtil, _swapUsed, err
+	return Round(_memUtil), _memUsed, _memAvail, Round(_swapUtil), _swapUsed, err
 }

@@ -19,5 +19,5 @@ func DiskSpace(path string) (diskspaceUtil float64, diskspaceUsed, diskspaceAvai
 	_inodesTotal := int(s.Files)
 	_inodesFree := int(s.Ffree)
 	_inodesUtil := 100 * (1 - float64(_inodesFree)/float64(_inodesTotal))
-	return _diskspaceUtil, _used, _avail, _inodesUtil, err
+	return Round(_diskspaceUtil), _used, _avail, Round(_inodesUtil), err
 }
