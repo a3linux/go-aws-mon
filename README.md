@@ -21,9 +21,9 @@ AWS CloudWatch Monitoring Program
 * You need to config you aws credential before run the program
 * Run the program as following for full metrics push
 
-'''
+```
 go-aws-mon --namespace=<NAMESPACE> --mem-util --mem-used --mem-avail --swap-util --swap-used  --disk-space-util --disk-inode-util --disk-space-used --disk-space-avail --disp-path=PATH
-'''
+```
 
 _PATH_, multiple paths are supported by comma(,) saperate, e.x. /,/var,/home
 
