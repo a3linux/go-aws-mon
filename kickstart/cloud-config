@@ -1,0 +1,14 @@
+#cloud-config
+  write_files:
+    - path: /home/ec2-user/go-aws-mon.sh
+      permissions: '0755'
+      owner: ec2-user
+      content: |
+        #!/bin/bash -
+        if [ ! -x /home/ec2-user/go-aws-mon ]; then
+          wget -O /home/ec2-user/go-aws-mon https://github.com/a3linux/go-aws-mon/raw/master/bin/go-aws-mon 
+          chmod +x /home/ec2-user/go-aws-mon
+        fi
+        export AWS_ACCESS_KEY_ID=<AccessKeyId>
+        export AWS_SECRET_ACCESS_KEY=<SecretAccessKey>
+        /home/ec2-user/go-aws-mon --mem-used --mem-avail --disk-space-used --disk-space-avail --disk-inode-util --swap-util
