@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
 	"log"
 	"os"
@@ -30,10 +29,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Can't get InstanceData, please confirm we are running on a AWS EC2 instance: ", err)
 		os.Exit(1)
-	}
-
-	for k, v := range metadata {
-		fmt.Println(k, " : ", v)
 	}
 
 	memUtil, memUsed, memAvail, swapUtil, swapUsed, err := memoryUsage()
@@ -106,10 +101,6 @@ func main() {
 				log.Fatal("Can't add Disk Inodes Utilization metric: ", err)
 			}
 		}
-	}
-
-	for _, mData := range metricData {
-		fmt.Printf("%+v\n", *mData)
 	}
 
 	err = putMetric(metricData, *ns, metadata["region"])

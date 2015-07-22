@@ -1,7 +1,12 @@
-default: build
+GOPATH=$(CURDIR)/godeps/
+
+default: godeps build
+
+godeps: 
+	env GOPATH="${GOPATH}" go get
 
 build:
-	go build 
+	env GOPATH="${GOPATH}" go build -o bin/go-aws-mon
 
 deps:
 	
