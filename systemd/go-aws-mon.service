@@ -1,0 +1,8 @@
+[Unit]
+Description=go-aws-mon
+
+[Service]
+ExecStart=/home/core/go-aws-mon.sh
+
+[Install]
+WantedBy=multi-user.target

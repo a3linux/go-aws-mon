@@ -1,0 +1,10 @@
+[Unit]
+Description=Push Instance Metric with go-aws-mon every minute
+
+[Timer]
+OnBootSec=0min
+OnCalendar=minutely
+Unit=go-aws-mon.service
+
+[Install]
+WantedBy=multi-user.target
