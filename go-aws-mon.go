@@ -1,16 +1,11 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/awsutil"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
-	"io/ioutil"
 	"log"
-	"net/http"
+	"os"
 	"strings"
 )
 
@@ -30,37 +25,51 @@ func main() {
 
 	flag.Parse()
 
+	metadata, err := getInstanceMetadata()
+
+	if err != nil {
+		log.Fatal("Can't get InstanceData, please confirm we are running on a AWS EC2 instance: ", err)
+		os.Exit(1)
+	}
+
+	for k, v := range metadata {
+		fmt.Println(k, " : ", v)
+	}
+
 	memUtil, memUsed, memAvail, swapUtil, swapUsed, err := memoryUsage()
 
+	var metricData []*cloudwatch.MetricDatum
+
+	dims := getDimensions(metadata)
 	if *isMemUtil {
-		err = putMetric("MemoryUtilization", "Percent", memUtil, *ns)
+		metricData, err = addMetric("MemoryUtilization", "Percent", memUtil, dims, metricData)
 		if err != nil {
-			log.Fatal("Can't put memory usage metric: ", err)
+			log.Fatal("Can't add memory usage metric: ", err)
 		}
 	}
 
 	if *isMemUsed {
-		err = putMetric("MemoryUsed", "Bytes", memUsed, *ns)
+		metricData, err = addMetric("MemoryUsed", "Bytes", memUsed, dims, metricData)
 		if err != nil {
-			log.Fatal("Can't put memory used metric: ", err)
+			log.Fatal("Can't add memory used metric: ", err)
 		}
 	}
 	if *isMemAvail {
-		err = putMetric("MemoryAvail", "Bytes", memAvail, *ns)
+		metricData, err = addMetric("MemoryAvail", "Bytes", memAvail, dims, metricData)
 		if err != nil {
-			log.Fatal("Can't put memory available metric: ", err)
+			log.Fatal("Can't add memory available metric: ", err)
 		}
 	}
 	if *isSwapUsed {
-		err = putMetric("SwapUsed", "Bytes", swapUsed, *ns)
+		metricData, err = addMetric("SwapUsed", "Bytes", swapUsed, dims, metricData)
 		if err != nil {
-			log.Fatal("Can't put swap used metric: ", err)
+			log.Fatal("Can't add swap used metric: ", err)
 		}
 	}
 	if *isSwapUtil {
-		err = putMetric("SwapUtil", "Percent", swapUtil, *ns)
+		metricData, err = addMetric("SwapUtil", "Percent", swapUtil, dims, metricData)
 		if err != nil {
-			log.Fatal("Can't put swap usage metric: ", err)
+			log.Fatal("Can't add swap usage metric: ", err)
 		}
 	}
 
@@ -71,79 +80,40 @@ func main() {
 		if err != nil {
 			log.Fatal("Can't get DiskSpace %s", err)
 		}
+		metadata["FileSystem"] = val
+		dims := getDimensions(metadata)
 		if *isDiskSpaceUtil {
-			err = putMetric("DiskUtilization", "Percent", diskspaceUtil, *ns)
+			metricData, err = addMetric("DiskUtilization", "Percent", diskspaceUtil, dims, metricData)
+			if err != nil {
+				log.Fatal("Can't add Disk Utilization metric: ", err)
+			}
+		}
+		if *isDiskSpaceUsed {
+			metricData, err = addMetric("DiskUsed", "Bytes", float64(diskspaceUsed), dims, metricData)
+			if err != nil {
+				log.Fatal("Can't add Disk Used metric: ", err)
+			}
+		}
+		if *isDiskSpaceAvail {
+			metricData, err = addMetric("DiskAvail", "Bytes", float64(diskspaceAvail), dims, metricData)
+			if err != nil {
+				log.Fatal("Can't add Disk Available metric: ", err)
+			}
+		}
+		if *isDiskInodeUtil {
+			metricData, err = addMetric("DiskInodesUtilization", "Percent", diskinodesUtil, dims, metricData)
+			if err != nil {
+				log.Fatal("Can't add Disk Inodes Utilization metric: ", err)
+			}
 		}
 	}
-}
 
-func addMetric(name, unit string, value float64, dimensions []*cloudwatch.Dimension, metricData []*cloudwatch.MetricDatum) error {
-	_metric := cloudwatch.MetricDatum{
-		MetricName: aws.String(name),
-		Unit:       aws.String(unit),
-		Value:      aws.Double(value),
-		Dimensions: dimensions,
+	for _, mData := range metricData {
+		fmt.Printf("%+v\n", *mData)
 	}
-	metricData = append(metricData, &_metric)
-	return nil
-}
 
-func putMetric(name, unit string, value float64, dimensions []cloudwatch.Dimension, namespace string) error {
-
-	region, instanceId, err := getMetadata()
+	err = putMetric(metricData, *ns, metadata["region"])
 	if err != nil {
-		log.Fatal("Failed to get endpoint metadata: %s", err)
+		log.Fatal("Can't put CloudWatch Metric")
 	}
-
-	svc := cloudwatch.New(&aws.Config{Region: region})
-
-	metric_input := &cloudwatch.PutMetricDataInput{
-		MetricData: []*cloudwatch.MetricDatum{
-			&cloudwatch.MetricDatum{
-				MetricName: aws.String(name),
-				Unit:       aws.String(unit),
-				Value:      aws.Double(value),
-				Dimensions: []*cloudwatch.Dimension{
-					{
-						Name:  aws.String("InstanceId"),
-						Value: aws.String(instanceId),
-					},
-				},
-			},
-		},
-		Namespace: aws.String(namespace),
-	}
-
-	resp, err := svc.PutMetricData(metric_input)
-	if err != nil {
-		if awsErr, ok := err.(awserr.Error); ok {
-			return fmt.Errorf("[%s] %s", awsErr.Code, awsErr.Message)
-		} else if err != nil {
-			return err
-		}
-	}
-	fmt.Println(awsutil.StringValue(resp))
-	return nil
-}
-
-/*
-  Metadata struct:
-
-*/
-func getMetadata() (region string, instanceId string, err error) {
-	resp, err := http.Get("http://169.254.169.254/latest/dynamic/instance-identity/document")
-	if err != nil {
-		return "", "", fmt.Errorf("can't reach metadata endpoint - %s", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", "", fmt.Errorf("can't read metadata response body - %s", err)
-	}
-
-	var data map[string]string
-	json.Unmarshal(body, &data)
-
-	return data, err
 }
