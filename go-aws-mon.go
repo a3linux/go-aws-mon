@@ -75,7 +75,7 @@ func main() {
 		if err != nil {
 			log.Fatal("Can't get DiskSpace %s", err)
 		}
-		metadata["FileSystem"] = val
+		metadata["fileSystem"] = val
 		dims := getDimensions(metadata)
 		if *isDiskSpaceUtil {
 			metricData, err = addMetric("DiskUtilization", "Percent", diskspaceUtil, dims, metricData)
