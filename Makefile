@@ -6,7 +6,7 @@ godeps:
 	env GOPATH="${GOPATH}" go get
 
 build:
-	env GOPATH="${GOPATH}" go build -o bin/go-aws-mon
+	env GOOS=linux GOPATH="${GOPATH}" go build -o bin/go-aws-mon
 
 deps:
 	
