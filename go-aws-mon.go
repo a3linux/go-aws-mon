@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
 	"log"
 	"os"
@@ -9,6 +10,8 @@ import (
 )
 
 func main() {
+	isAggregated := flag.Bool("aggregated", false, "Adds aggregated metrics for instance type, AMI ID, and overall for the region")
+	isAutoScaling := flag.Bool("auto-scaling", false, "Adds aggregated metrics for the Auto Scaling group")
 	isMemUtil := flag.Bool("mem-util", true, "Memory Utilization(percent)")
 	isMemUsed := flag.Bool("mem-used", false, "Memory Used(bytes)")
 	isMemAvail := flag.Bool("mem-avail", false, "Memory Available(bytes)")
@@ -35,7 +38,23 @@ func main() {
 
 	var metricData []*cloudwatch.MetricDatum
 
-	dims := getDimensions(metadata)
+	var dims []*cloudwatch.Dimension
+	if !*isAggregated {
+		dims = getDimensions(metadata)
+	}
+
+	if *isAutoScaling {
+		if as, err := getAutoscalingGroup(metadata["instanceId"], metadata["region"]); as != nil && err == nil {
+			dims = append(dims, &cloudwatch.Dimension{
+				Name:  aws.String("AutoScalingGroupName"),
+				Value: as,
+			})
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	if *isMemUtil {
 		metricData, err = addMetric("MemoryUtilization", "Percent", memUtil, dims, metricData)
 		if err != nil {
