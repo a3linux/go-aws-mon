@@ -4,7 +4,7 @@ cd ${RELATIVE_PATH}
 ABS_PATH=`pwd`
 cd -
 
-if [ ! -x ${ABS_PATH}/go-aws-mon ]; then
+if [ ! -x ${ABS_PATH}/go-aws-mon ] && [ ! -s ${ABS_PATH}/go-aws-mon ]; then
     wget -O ${ABS_PATH}/go-aws-mon https://github.com/a3linux/go-aws-mon/raw/master/bin/go-aws-mon
     chmod +x ${ABS_PATH}/go-aws-mon
 fi
