@@ -5,7 +5,7 @@
       owner: ec2-user
       content: |
         #!/bin/bash -
-        if [ ! -x /home/ec2-user/go-aws-mon ]; then
+        if [ ! -x /home/ec2-user/go-aws-mon ] && [ ! -s /home/ec2-user/go-aws-mon ]; then
           wget -O /home/ec2-user/go-aws-mon https://github.com/a3linux/go-aws-mon/raw/master/bin/go-aws-mon 
           chmod +x /home/ec2-user/go-aws-mon
         fi
