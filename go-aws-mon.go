@@ -2,12 +2,21 @@ package main
 
 import (
 	"flag"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/cloudwatch"
 	"log"
 	"os"
 	"strings"
+	"net/http"
+	"fmt"
+	"io/ioutil"
+	"encoding/json"
+
+	"github.com/aws/aws-sdk-go/aws"
+	aws_session "github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/cloudwatch"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 )
+
+var session *aws_session.Session
 
 func main() {
 	isAggregated := flag.Bool("aggregated", false, "Adds aggregated metrics for instance type, AMI ID, and overall for the region")
@@ -34,6 +43,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	credential, err := getIamCredential()
+
+	if err != nil {
+		log.Fatal("Can't get IAM Credential: ", err)
+		os.Exit(1)
+	}
+
+	session = aws_session.New(&aws.Config{
+		Region: aws.String(metadata["region"]),
+		Credentials: credentials.NewStaticCredentials(credential["AccessKeyId"], credential["SecretAccessKey"], credential["Token"]),
+	})
+
 	memUtil, memUsed, memAvail, swapUtil, swapUsed, err := memoryUsage()
 
 	var metricData []*cloudwatch.MetricDatum
@@ -44,7 +65,7 @@ func main() {
 	}
 
 	if *isAutoScaling {
-		if as, err := getAutoscalingGroup(metadata["instanceId"], metadata["region"]); as != nil && err == nil {
+		if as, err := getAutoscalingGroup(metadata["instanceId"]); as != nil && err == nil {
 			dims = append(dims, &cloudwatch.Dimension{
 				Name:  aws.String("AutoScalingGroupName"),
 				Value: as,
@@ -122,8 +143,39 @@ func main() {
 		}
 	}
 
-	err = putMetric(metricData, *ns, metadata["region"])
+	err = putMetric(metricData, *ns)
 	if err != nil {
 		log.Fatal("Can't put CloudWatch Metric: ", err)
 	}
+}
+
+func getIamCredential() (credential map[string]string, err error) {
+	var data map[string]string
+	resp, err := http.Get("http://169.254.169.254/latest/meta-data/iam/security-credentials/")
+	if err != nil {
+		return data, fmt.Errorf("can't reach credentials endpoint - %s", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return data, fmt.Errorf("can't read credentials response body - %s", err)
+	}
+
+	iamRole := string(body)
+
+	resp, err = http.Get("http://169.254.169.254/latest/meta-data/iam/security-credentials/" + iamRole)
+	if err != nil {
+		return data, fmt.Errorf("can't reach credentials content endpoint - %s", err)
+	}
+	defer resp.Body.Close()
+
+	body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return data, fmt.Errorf("can't read credentials content response body - %s", err)
+	}
+
+	json.Unmarshal(body, &data)
+
+	return data, err
 }

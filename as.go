@@ -6,18 +6,15 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 )
 
-
-func getAutoscalingGroup(instanceId string, region string) (*string, error) {
-	session := session.New(&aws.Config{Region: &region})
+func getAutoscalingGroup(instanceId string) (*string, error) {
 	svc := autoscaling.New(session)
 
 	params := &autoscaling.DescribeAutoScalingInstancesInput{
 		InstanceIds: []*string{&instanceId},
-		MaxRecords: aws.Int64(1),
+		MaxRecords:  aws.Int64(1),
 	}
 
 	resp, err := svc.DescribeAutoScalingInstances(params)

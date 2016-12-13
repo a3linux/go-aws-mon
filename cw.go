@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/awsutil"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
 	"io/ioutil"
 	"log"
@@ -71,9 +70,8 @@ func addMetric(name, unit string, value float64, dimensions []*cloudwatch.Dimens
 	return metricData, nil
 }
 
-func putMetric(metricdata []*cloudwatch.MetricDatum, namespace, region string) error {
+func putMetric(metricdata []*cloudwatch.MetricDatum, namespace string) error {
 
-	session := session.New(&aws.Config{Region: &region})
 	svc := cloudwatch.New(session)
 
 	metric_input := &cloudwatch.PutMetricDataInput{
