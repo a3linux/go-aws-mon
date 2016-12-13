@@ -124,6 +124,6 @@ func main() {
 
 	err = putMetric(metricData, *ns, metadata["region"])
 	if err != nil {
-		log.Fatal("Can't put CloudWatch Metric")
+		log.Fatal("Can't put CloudWatch Metric: ", err)
 	}
 }
