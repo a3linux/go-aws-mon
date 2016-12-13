@@ -84,7 +84,7 @@ func putMetric(metricdata []*cloudwatch.MetricDatum, namespace, region string) e
 	resp, err := svc.PutMetricData(metric_input)
 	if err != nil {
 		if awsErr, ok := err.(awserr.Error); ok {
-			return fmt.Errorf("[%s] %s", awsErr.Code, awsErr.Message)
+			return fmt.Errorf("[%s] %s", awsErr.Code(), awsErr.Message())
 		} else if err != nil {
 			return err
 		}

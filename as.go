@@ -23,7 +23,7 @@ func getAutoscalingGroup(instanceId string, region string) (*string, error) {
 	resp, err := svc.DescribeAutoScalingInstances(params)
 	if err != nil {
 		if awsErr, ok := err.(awserr.Error); ok {
-			return nil, fmt.Errorf("[%s] %s", awsErr.Code, awsErr.Message)
+			return nil, fmt.Errorf("[%s] %s", awsErr.Code(), awsErr.Message())
 		} else if err != nil {
 			return nil, err
 		}
