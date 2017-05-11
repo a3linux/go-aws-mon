@@ -1,0 +1,9 @@
+[Unit]
+Description=go-aws-mon
+
+[Service]
+ExecStartPre=/usr/bin/docker pull a3linux/go-aws-mon
+ExecStart=/usr/bin/docker run --rm -v /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/certificates.crt -v /var/log:/var/log a3linux/go-aws-mon /usr/bin/go-aws-mon --mem-used --mem-avail --disk-space-used --disk-space-avail --disk-inode-util --disk-path=/,/var/lib
+
+[Install]
+WantedBy=multi-user.target
