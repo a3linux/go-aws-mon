@@ -95,7 +95,24 @@ func main() {
 			log.Fatal("Can't get DiskSpace %s", err)
 		}
 		metadata["fileSystem"] = val
-		dims := getDimensions(metadata)
+
+		var dims []*cloudwatch.Dimension
+		if !*isAggregated {
+			dims = getDimensions(metadata)
+		}
+
+		if *isAutoScaling {
+			if as, err := getAutoscalingGroup(metadata["instanceId"], metadata["region"]); as != nil && err == nil {
+				dims = append(dims, &cloudwatch.Dimension{
+					Name:  aws.String("AutoScalingGroupName"),
+					Value: as,
+				})
+			}
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+
 		if *isDiskSpaceUtil {
 			metricData, err = addMetric("DiskUtilization", "Percent", diskspaceUtil, dims, metricData)
 			if err != nil {
